@@ -14,7 +14,7 @@ public class ShortestJobFirst extends JFrame implements ActionListener {
 
     public ShortestJobFirst() {
         super("Shortest Job First Scheduling");
-        setSize(600, 400);
+        setSize(700, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -49,7 +49,7 @@ public class ShortestJobFirst extends JFrame implements ActionListener {
         inputPanel.add(submitButton);
 
         // Result Area
-        resultArea = new JTextArea(15, 50);
+        resultArea = new JTextArea(15, 60);
         resultArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(resultArea);
 
@@ -75,6 +75,7 @@ public class ShortestJobFirst extends JFrame implements ActionListener {
 
             int[] arrivalTime = new int[n];
             int[] burstTime = new int[n];
+            int[] completionTime = new int[n];
             int[] waitingTime = new int[n];
             int[] turnAroundTime = new int[n];
             boolean[] completed = new boolean[n];
@@ -100,7 +101,8 @@ public class ShortestJobFirst extends JFrame implements ActionListener {
 
                 if (selectedProcess != -1) {
                     currentTime += burstTime[selectedProcess];
-                    turnAroundTime[selectedProcess] = currentTime - arrivalTime[selectedProcess];
+                    completionTime[selectedProcess] = currentTime;
+                    turnAroundTime[selectedProcess] = completionTime[selectedProcess] - arrivalTime[selectedProcess];
                     waitingTime[selectedProcess] = turnAroundTime[selectedProcess] - burstTime[selectedProcess];
                     completed[selectedProcess] = true;
                     completedCount++;
@@ -109,13 +111,14 @@ public class ShortestJobFirst extends JFrame implements ActionListener {
                 }
             }
 
-            // Display 
+            // Display Results in the Specified Order
             StringBuilder result = new StringBuilder();
-            result.append("Process\tArrival Time\tBurst Time\tTurnaround Time\tWaiting Time\n");
+            result.append("Process\tArrival Time\tBurst Time\tCompletion Time\tTurnaround Time\tWaiting Time\n");
             for (int i = 0; i < n; i++) {
                 result.append("P").append(i + 1).append("\t")
                         .append(arrivalTime[i]).append("\t")
                         .append(burstTime[i]).append("\t")
+                        .append(completionTime[i]).append("\t\t")
                         .append(turnAroundTime[i]).append("\t\t")
                         .append(waitingTime[i]).append("\n");
             }
