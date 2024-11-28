@@ -1,11 +1,12 @@
 package scheduling_algorithms;
 
 import java.awt.*;
-import javax.swing.*;
 import java.awt.event.*;
+import java.util.ArrayList;
 import java.util.Arrays;
+import javax.swing.*;
 
-public class ScanScheduling2 extends JFrame implements ActionListener {
+public class ScanSchedulingWithGraph extends JFrame implements ActionListener {
 
     private JTextField requestField;
     private JTextField headPositionField;
@@ -13,9 +14,11 @@ public class ScanScheduling2 extends JFrame implements ActionListener {
     private JTextField diskSizeField;
     private JTextArea resultArea;
     private JButton submitButton;
-    private GraphPanel graphPanel;
 
-    public ScanScheduling2() {
+    private ArrayList<Integer> headMovementPath;
+    private int diskSize;
+
+    public ScanSchedulingWithGraph() {
         super("SCAN Disk Scheduling");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -62,13 +65,9 @@ public class ScanScheduling2 extends JFrame implements ActionListener {
         resultArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(resultArea);
 
-        // Graph Panel
-        graphPanel = new GraphPanel();
-
         // Add components to the frame
         add(inputPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
-        add(graphPanel, BorderLayout.SOUTH);
 
         setVisible(true);
     }
@@ -85,7 +84,7 @@ public class ScanScheduling2 extends JFrame implements ActionListener {
 
             int head = Integer.parseInt(headPositionField.getText().trim());
             String direction = directionField.getText().trim().toLowerCase();
-            int diskSize = Integer.parseInt(diskSizeField.getText().trim());
+            diskSize = Integer.parseInt(diskSizeField.getText().trim());
 
             if (!direction.equals("up") && !direction.equals("down")) {
                 resultArea.setText("Error: Direction must be 'up' or 'down'.");
@@ -94,10 +93,11 @@ public class ScanScheduling2 extends JFrame implements ActionListener {
 
             // SCAN Algorithm Logic
             Arrays.sort(requests);
+            headMovementPath = new ArrayList<>();
+            headMovementPath.add(head);
+
             int totalHeadMovement = 0;
             StringBuilder processingOrder = new StringBuilder("Processing Order:\n");
-            java.util.List<Integer> headMovements = new java.util.ArrayList<>();
-            headMovements.add(head);
 
             if (direction.equals("up")) {
                 for (int request : requests) {
@@ -105,42 +105,38 @@ public class ScanScheduling2 extends JFrame implements ActionListener {
                         processingOrder.append(request).append(" ");
                         totalHeadMovement += Math.abs(request - head);
                         head = request;
-                        headMovements.add(head);
+                        headMovementPath.add(head);
                     }
                 }
-
                 totalHeadMovement += Math.abs(diskSize - head);
                 head = diskSize;
-                headMovements.add(head);
-
+                headMovementPath.add(head);
                 for (int i = requests.length - 1; i >= 0; i--) {
                     if (requests[i] < head) {
                         processingOrder.append(requests[i]).append(" ");
                         totalHeadMovement += Math.abs(requests[i] - head);
                         head = requests[i];
-                        headMovements.add(head);
+                        headMovementPath.add(head);
                     }
                 }
-            } else {
+            } else { // Direction is "down"
                 for (int i = requests.length - 1; i >= 0; i--) {
                     if (requests[i] <= head) {
                         processingOrder.append(requests[i]).append(" ");
                         totalHeadMovement += Math.abs(requests[i] - head);
                         head = requests[i];
-                        headMovements.add(head);
+                        headMovementPath.add(head);
                     }
                 }
-
                 totalHeadMovement += head;
                 head = 0;
-                headMovements.add(head);
-
+                headMovementPath.add(head);
                 for (int request : requests) {
                     if (request > head) {
                         processingOrder.append(request).append(" ");
                         totalHeadMovement += Math.abs(request - head);
                         head = request;
-                        headMovements.add(head);
+                        headMovementPath.add(head);
                     }
                 }
             }
@@ -149,60 +145,89 @@ public class ScanScheduling2 extends JFrame implements ActionListener {
             processingOrder.append("\nTotal Head Movement: ").append(totalHeadMovement);
             resultArea.setText(processingOrder.toString());
 
-            // Update Graph
-            graphPanel.setHeadMovements(headMovements, diskSize);
+            // Show Graph in a Separate Frame
+            showGraphFrame();
+
         } catch (Exception ex) {
             resultArea.setText("Error: Invalid input. Please ensure correct formatting.");
         }
     }
 
+    private void showGraphFrame() {
+        JFrame graphFrame = new JFrame("SCAN Algorithm Graph");
+        graphFrame.setSize(600, 400);
+        graphFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        GraphPanel graphPanel = new GraphPanel();
+        graphPanel.setHeadMovementPath(headMovementPath, diskSize);
+
+        graphFrame.add(graphPanel);
+        graphFrame.setVisible(true);
+    }
     private class GraphPanel extends JPanel {
-        private java.util.List<Integer> headMovements = new java.util.ArrayList<>();
+        private ArrayList<Integer> headMovementPath;
         private int diskSize;
-
-        public void setHeadMovements(java.util.List<Integer> headMovements, int diskSize) {
-            this.headMovements = headMovements;
+    
+        public void setHeadMovementPath(ArrayList<Integer> headMovementPath, int diskSize) {
+            this.headMovementPath = headMovementPath;
             this.diskSize = diskSize;
-            repaint();
         }
-
+    
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-
-            if (headMovements.isEmpty()) {
+            if (headMovementPath == null || headMovementPath.isEmpty()) {
                 return;
             }
-
+    
             int width = getWidth();
             int height = getHeight();
             int padding = 50;
-            int graphHeight = height - 2 * padding;
             int graphWidth = width - 2 * padding;
-
-            int yScale = graphHeight / diskSize;
-            int xSpacing = graphWidth / Math.max(1, headMovements.size() - 1);
-
-            g.setColor(Color.BLACK);
-            g.drawLine(padding, padding, padding, height - padding);
-            g.drawLine(padding, height - padding, width - padding, height - padding);
-
-            int prevX = padding;
-            int prevY = height - padding - (headMovements.get(0) * yScale);
-
+            int graphHeight = height - 2 * padding;
+    
+            // Draw axes
+            g.drawLine(padding, height - padding, width - padding, height - padding); // X-axis
+            g.drawLine(padding, padding, padding, height - padding); // Y-axis
+    
+            // Add labels to the axes
+            g.setFont(new Font("Arial", Font.PLAIN, 12));
+            for (int i = 0; i <= diskSize; i += diskSize / 10) {
+                int x = padding + (i * graphWidth) / diskSize;
+                g.drawLine(x, height - padding, x, height - padding + 5);
+                g.drawString(String.valueOf(i), x - 10, height - padding + 20); // X-axis labels
+            }
+    
+            for (int i = 0; i < headMovementPath.size(); i++) {
+                int y = height - padding - (i * graphHeight) / (headMovementPath.size() - 1);
+                g.drawLine(padding - 5, y, padding, y);
+                g.drawString("Req " + i, padding - 35, y + 5); // Y-axis labels
+            }
+    
+            // Draw head movement path
+            int prevX = padding + (headMovementPath.get(0) * graphWidth) / diskSize;
+            int prevY = height - padding;
             g.setColor(Color.BLUE);
-            for (int i = 1; i < headMovements.size(); i++) {
-                int currX = padding + i * xSpacing;
-                int currY = height - padding - (headMovements.get(i) * yScale);
-
-                g.drawLine(prevX, prevY, currX, currY);
-                prevX = currX;
-                prevY = currY;
+            for (int i = 1; i < headMovementPath.size(); i++) {
+                int currentX = padding + (headMovementPath.get(i) * graphWidth) / diskSize;
+                int currentY = height - padding - (i * graphHeight) / (headMovementPath.size() - 1);
+                g.drawLine(prevX, prevY, currentX, currentY);
+                prevX = currentX;
+                prevY = currentY;
+            }
+    
+            // Plot points on the graph
+            g.setColor(Color.RED);
+            for (int i = 0; i < headMovementPath.size(); i++) {
+                int x = padding + (headMovementPath.get(i) * graphWidth) / diskSize;
+                int y = height - padding - (i * graphHeight) / (headMovementPath.size() - 1);
+                g.fillOval(x - 4, y - 4, 8, 8);
             }
         }
     }
+    
 
     public static void main(String[] args) {
-        new ScanScheduling2();
+        new ScanSchedulingWithGraph();
     }
 }
